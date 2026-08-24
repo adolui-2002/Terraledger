@@ -1,0 +1,357 @@
+import {
+  AlertTriangle, CheckCircle2, FileText, PlayCircle, ShieldAlert,
+  Sparkles, Upload, XCircle,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+
+import { Applications, Review } from "../api/client";
+import AssistantPanel from "../components/AssistantPanel";
+import RiskBadge from "../components/RiskBadge";
+import ScoreGauge from "../components/ScoreGauge";
+import StatusBadge from "../components/StatusBadge";
+import Timeline from "../components/Timeline";
+import TopBar from "../components/TopBar";
+
+const DOC_TYPES = ["APPLICATION_FORM", "PROPOSAL", "BUDGET", "CERTIFICATE", "PREVIOUS_REPORT", "PHOTO", "OTHER"];
+const NON_REPROCESSABLE = ["UNDER_REVIEW", "NEEDS_INFO", "APPROVED", "REJECTED", "CLOSED"];
+
+const STATUS_ICON = {
+  PASS: <CheckCircle2 size={14} className="text-moss" />,
+  WARNING: <AlertTriangle size={14} className="text-gold" />,
+  FAIL: <XCircle size={14} className="text-clay" />,
+};
+
+export default function ApplicationDetail() {
+  const { id } = useParams();
+  const [app, setApp] = useState(null);
+  const [audit, setAudit] = useState([]);
+  const [reviewers, setReviewers] = useState([]);
+  const [docType, setDocType] = useState("APPLICATION_FORM");
+  const [busy, setBusy] = useState(false);
+  const [decisionForm, setDecisionForm] = useState({ reviewer_name: "", human_decision: "APPROVED", override_reason: "", notes: "" });
+  const [error, setError] = useState("");
+
+  function refresh() {
+    Applications.get(id).then(setApp);
+    Applications.audit(id).then(setAudit);
+  }
+
+  useEffect(() => {
+    refresh();
+    Review.reviewers().then(setReviewers).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  if (!app) return <div className="p-8 text-ink_text-muted">Loading…</div>;
+
+  const latestScore = app.scores.length ? app.scores[app.scores.length - 1] : null;
+
+  async function handleUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      await Applications.uploadDocument(id, docType, file);
+      refresh();
+    } finally {
+      setBusy(false);
+      e.target.value = "";
+    }
+  }
+
+  async function handleProcess() {
+    setBusy(true);
+    setError("");
+    try {
+      await Applications.process(id);
+      refresh();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Processing failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAssign(reviewerName) {
+    await Review.assign(id, reviewerName);
+    refresh();
+  }
+
+  async function handleDecision(e) {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await Review.decide(id, decisionForm);
+      refresh();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Could not record decision.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      <TopBar title={app.reference_code} subtitle={`${app.applicant_name} · ${app.scheme_name}`} showNew={false} />
+
+      <div className="grid grid-cols-1 gap-6 px-8 py-6 xl:grid-cols-3">
+        {/* LEFT: main content */}
+        <div className="space-y-6 xl:col-span-2">
+          {/* Overview */}
+          <div className="panel p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <StatusBadge status={app.status} />
+                {latestScore && <RiskBadge level={latestScore.risk_level} />}
+                {app.synthetic_category && (
+                  <span className="font-mono text-[10px] uppercase tracking-wide text-ink_text-faint">
+                    synthetic:{app.synthetic_category}
+                  </span>
+                )}
+              </div>
+              {!NON_REPROCESSABLE.includes(app.status) && (
+                <button className="btn-primary" onClick={handleProcess} disabled={busy || app.documents.length === 0}>
+                  <PlayCircle size={15} />
+                  {app.scores.length ? "Re-run pipeline" : "Run pipeline"}
+                </button>
+              )}
+            </div>
+            {error && (
+              <p className="mt-3 rounded-lg border border-clay-dim bg-clay-dim/20 px-3 py-2 text-sm text-clay-soft">
+                {error}
+              </p>
+            )}
+            <dl className="mt-5 grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
+              <div>
+                <dt className="eyebrow">Requested amount</dt>
+                <dd className="mt-1 text-ink_text-primary">
+                  {app.requested_amount ? `₹${app.requested_amount.toLocaleString()}` : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="eyebrow">Assigned reviewer</dt>
+                <dd className="mt-1 text-ink_text-primary">{app.assigned_reviewer || "Unassigned"}</dd>
+              </div>
+              <div>
+                <dt className="eyebrow">Submitted</dt>
+                <dd className="mt-1 text-ink_text-primary">{new Date(app.submitted_at).toLocaleDateString()}</dd>
+              </div>
+            </dl>
+            {!app.assigned_reviewer && reviewers.length > 0 && (
+              <div className="mt-4 flex items-center gap-2">
+                <span className="text-xs text-ink_text-muted">Assign to:</span>
+                {reviewers.map((r) => (
+                  <button key={r.name} className="btn-secondary py-1 px-2.5 text-xs" onClick={() => handleAssign(r.name)}>
+                    {r.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Documents */}
+          <div className="panel p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="font-display text-lg font-semibold text-ink_text-primary">Documents</h3>
+              <div className="flex items-center gap-2">
+                <select className="input w-44" value={docType} onChange={(e) => setDocType(e.target.value)}>
+                  {DOC_TYPES.map((t) => <option key={t} value={t}>{t.replaceAll("_", " ")}</option>)}
+                </select>
+                <label className="btn-secondary cursor-pointer">
+                  <Upload size={14} /> Upload
+                  <input type="file" className="hidden" onChange={handleUpload} disabled={busy} />
+                </label>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {app.documents.length === 0 && <p className="text-sm text-ink_text-faint">No documents uploaded yet.</p>}
+              {app.documents.map((d) => (
+                <div key={d.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                  <div className="flex items-center gap-2.5">
+                    <FileText size={14} className="text-ink_text-faint" />
+                    <span className="text-sm text-ink_text-primary">{d.filename}</span>
+                    <span className="font-mono text-[10px] uppercase text-ink_text-faint">{d.doc_type}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-ink_text-muted">
+                    {d.ocr_used && <span>OCR conf. {(d.ocr_confidence * 100).toFixed(0)}%</span>}
+                    <span className="font-mono uppercase">{d.detected_language}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Validation */}
+          {app.validation_results.length > 0 && (
+            <div className="panel p-6">
+              <h3 className="mb-4 font-display text-lg font-semibold text-ink_text-primary">Validation</h3>
+              <div className="space-y-2">
+                {app.validation_results.map((v, i) => (
+                  <div key={i} className="flex items-start gap-2.5 text-sm">
+                    {STATUS_ICON[v.status]}
+                    <div>
+                      <span className="font-medium text-ink_text-primary">{v.check_name.replaceAll("_", " ")}: </span>
+                      <span className="text-ink_text-muted">{v.message}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Fraud signals */}
+          {app.fraud_signals.length > 0 && (
+            <div className="panel border-clay-dim p-6">
+              <h3 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold text-clay-soft">
+                <ShieldAlert size={17} /> Fraud &amp; risk signals
+              </h3>
+              <div className="space-y-2">
+                {app.fraud_signals.map((f, i) => (
+                  <div key={i} className="rounded-lg border border-clay-dim bg-clay-dim/10 px-3 py-2 text-sm">
+                    <span className="font-mono text-[10px] uppercase tracking-wide text-clay-soft">
+                      {f.signal_type} · {f.severity}
+                    </span>
+                    <p className="mt-0.5 text-ink_text-primary">{f.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Review decision form */}
+          {app.status !== "CLOSED" && (
+            <div className="panel p-6">
+              <h3 className="mb-4 font-display text-lg font-semibold text-ink_text-primary">Record review decision</h3>
+              <form onSubmit={handleDecision} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Reviewer</label>
+                    <select
+                      className="input"
+                      value={decisionForm.reviewer_name}
+                      onChange={(e) => setDecisionForm({ ...decisionForm, reviewer_name: e.target.value })}
+                      required
+                    >
+                      <option value="">Select reviewer…</option>
+                      {reviewers.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Decision</label>
+                    <select
+                      className="input"
+                      value={decisionForm.human_decision}
+                      onChange={(e) => setDecisionForm({ ...decisionForm, human_decision: e.target.value })}
+                    >
+                      <option value="APPROVED">Approve</option>
+                      <option value="REJECTED">Reject</option>
+                      <option value="NEEDS_INFO">Request more information</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Override reason (required if this differs from the AI recommendation)</label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={decisionForm.override_reason}
+                    onChange={(e) => setDecisionForm({ ...decisionForm, override_reason: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="label">Notes</label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={decisionForm.notes}
+                    onChange={(e) => setDecisionForm({ ...decisionForm, notes: e.target.value })}
+                  />
+                </div>
+                <button className="btn-primary" type="submit" disabled={busy}>Submit decision</button>
+              </form>
+            </div>
+          )}
+
+          {/* Audit trail */}
+          <div className="panel p-6">
+            <h3 className="mb-4 font-display text-lg font-semibold text-ink_text-primary">Audit trail</h3>
+            <Timeline entries={audit} />
+          </div>
+        </div>
+
+        {/* RIGHT: score + assistant */}
+        <div className="space-y-6">
+          {latestScore ? (
+            <div className="panel p-6 text-center">
+              <p className="eyebrow mb-4">AI Recommendation</p>
+              <div className="flex justify-center">
+                <ScoreGauge score={latestScore.total_score} riskLevel={latestScore.risk_level} />
+              </div>
+              <p className="mt-3 font-display text-base font-semibold text-ink_text-primary">
+                {latestScore.ai_recommendation.replaceAll("_", " ")}
+              </p>
+              <p className="text-xs text-ink_text-muted">confidence {(latestScore.confidence * 100).toFixed(0)}%</p>
+
+              <div className="mt-5 space-y-1.5 text-left">
+                {Object.entries(latestScore.breakdown).map(([cat, pts]) => (
+                  <div key={cat} className="flex items-center justify-between text-xs">
+                    <span className="text-ink_text-muted">{cat.replaceAll("_", " ")}</span>
+                    <span className="font-mono text-ink_text-primary">
+                      {pts}/{latestScore.max_breakdown[cat]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {latestScore.ml_approval_probability != null && (
+                <div className="mt-5 rounded-lg border border-border bg-ink-soft p-3 text-left">
+                  <div className="mb-1.5 flex items-center gap-1.5">
+                    <Sparkles size={12} className="text-gold" />
+                    <span className="eyebrow">ML second opinion</span>
+                    {latestScore.model_agreement && (
+                      <span className={`ml-auto text-[10px] font-mono uppercase ${
+                        latestScore.model_agreement === "AGREE" ? "text-moss-soft" : "text-clay-soft"
+                      }`}>
+                        {latestScore.model_agreement}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-ink_text-primary">
+                    {(latestScore.ml_approval_probability * 100).toFixed(0)}% predicted approval likelihood
+                  </p>
+                  <div className="mt-2 space-y-1">
+                    {latestScore.shap_explanation.slice(0, 4).map((f, i) => (
+                      <div key={i} className="flex items-center justify-between text-[11px]">
+                        <span className="text-ink_text-muted">{f.feature}</span>
+                        <span className={f.direction === "increases" ? "text-moss-soft" : "text-clay-soft"}>
+                          {f.direction === "increases" ? "▲" : "▼"} {Math.abs(f.contribution)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-5 space-y-1.5 text-left">
+                {latestScore.reasons_positive.map((r, i) => (
+                  <p key={`p${i}`} className="text-xs text-moss-soft">✓ {r}</p>
+                ))}
+                {latestScore.reasons_concern.map((r, i) => (
+                  <p key={`c${i}`} className="text-xs text-clay-soft">⚠ {r}</p>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="panel p-6 text-center text-sm text-ink_text-faint">
+              Upload documents and run the pipeline to see a score.
+            </div>
+          )}
+
+          <AssistantPanel applicationId={id} compact />
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,38 @@
+# Configurable per-scheme eligibility rules.
+# Adding a new government scheme means adding a block here — not touching
+# application code. The "default" scheme is used when an application's
+# scheme_name has no dedicated block below.
+
+default:
+  minimum_project_budget: 50000
+  maximum_project_budget: 10000000
+  required_documents:
+    - APPLICATION_FORM
+    - PROPOSAL
+    - BUDGET
+    - CERTIFICATE
+  contradiction_tolerance_pct: 10      # amount mismatch above this % is flagged
+  max_certificate_age_years: 5
+
+"Environmental Scheme":
+  minimum_project_budget: 100000
+  maximum_project_budget: 5000000
+  required_documents:
+    - APPLICATION_FORM
+    - PROPOSAL
+    - BUDGET
+    - CERTIFICATE
+  contradiction_tolerance_pct: 10
+  max_certificate_age_years: 5
+
+"Climate Resilience Grant":
+  minimum_project_budget: 200000
+  maximum_project_budget: 8000000
+  required_documents:
+    - APPLICATION_FORM
+    - PROPOSAL
+    - BUDGET
+    - CERTIFICATE
+    - PREVIOUS_REPORT
+  contradiction_tolerance_pct: 8
+  max_certificate_age_years: 3

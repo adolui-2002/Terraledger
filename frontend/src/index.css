@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-ink text-ink_text-primary font-body antialiased;
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(212, 165, 74, 0.06), transparent 45%),
+      radial-gradient(circle at 85% 100%, rgba(95, 174, 134, 0.05), transparent 45%);
+    background-attachment: fixed;
+  }
+  ::selection {
+    background: rgba(212, 165, 74, 0.3);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #24413a;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #2f5748;
+  }
+  :focus-visible {
+    outline: 2px solid #d4a54a;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-surface border border-border rounded-xl shadow-panel;
+  }
+  .panel-raised {
+    @apply bg-surface-raised border border-border rounded-xl shadow-panel;
+  }
+  .eyebrow {
+    @apply font-mono text-[11px] tracking-[0.18em] uppercase text-ink_text-muted;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-lg bg-gold text-ink font-semibold px-4 py-2
+           text-sm hover:bg-gold-soft transition-colors duration-150 disabled:opacity-40
+           disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 rounded-lg border border-border bg-surface-raised
+           text-ink_text-primary font-medium px-4 py-2 text-sm hover:bg-surface-hover
+           transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply inline-flex items-center gap-2 rounded-lg border border-clay-dim bg-clay-dim/30
+           text-clay-soft font-medium px-4 py-2 text-sm hover:bg-clay-dim/50
+           transition-colors duration-150;
+  }
+  .input {
+    @apply w-full bg-ink-soft border border-border rounded-lg px-3 py-2 text-sm
+           text-ink_text-primary placeholder:text-ink_text-faint focus:border-gold
+           outline-none transition-colors;
+  }
+  .label {
+    @apply block text-xs font-medium text-ink_text-muted mb-1.5;
+  }
+}
+
+@layer utilities {
+  .contour-texture {
+    background-image: repeating-radial-gradient(
+      circle at 50% 40%,
+      transparent 0,
+      transparent 38px,
+      rgba(234, 242, 238, 0.025) 39px,
+      transparent 40px
+    );
+  }
+}

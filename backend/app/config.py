@@ -1,0 +1,43 @@
+"""
+Centralized configuration.
+
+Everything that differs between local / docker / on-prem deployment is
+read from the environment here, and nowhere else in the codebase. This
+keeps configuration separated from business logic (a requirement of the
+solution brief) and means the same image can be promoted between
+environments by changing env vars only.
+"""
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    app_env: str = "development"
+    secret_key: str = "change-me-in-production"
+
+    database_url: str = "sqlite:///./eco_review_dev.db"
+
+    # AI provider abstraction — see app/services/ai_provider.py
+    ai_provider: str = "mock"          # mock | openai
+    openai_api_key: str = ""
+    openai_model: str = "claude-sonnet-4-6"
+
+    document_storage_path: str = "./storage/documents"
+
+    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+
+    rules_dir: str = str(Path(__file__).parent / "rules")
+    ml_model_path: str = str(Path(__file__).parent / "ml" / "artifacts")
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

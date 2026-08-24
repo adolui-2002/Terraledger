@@ -1,0 +1,22 @@
+# Weighted scoring rubric. Total must sum to 100.
+# category -> max points. Editing this file changes scoring behaviour for
+# every application without a code change or redeploy of the scoring service.
+
+eligibility: 20
+completeness: 10
+technical_feasibility: 20
+environmental_impact: 20
+budget_quality: 15
+implementation_plan: 15
+
+# Risk thresholds derived from the final score + fraud signal count
+risk_thresholds:
+  high_risk_max_score: 45
+  medium_risk_max_score: 70
+  # anything with 2+ HIGH severity fraud signals is always HIGH risk
+  fraud_high_signal_escalation: 2
+
+# AI recommendation thresholds
+recommendation_thresholds:
+  approve_min_score: 75
+  reject_max_score: 35
