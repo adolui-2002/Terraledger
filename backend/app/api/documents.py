@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse, Response
 from sqlalchemy.orm import Session
 
 from app import schemas
@@ -10,6 +11,7 @@ from app.models import Application, Document
 from app.services import audit_service, extraction_service, language_service
 
 router = APIRouter(prefix="/api/v1/applications", tags=["documents"])
+doc_router = APIRouter(prefix="/api/v1/documents", tags=["documents"])
 settings = get_settings()
 
 
@@ -83,3 +85,48 @@ async def upload_document(
 @router.get("/{application_id}/documents", response_model=list[schemas.DocumentOut])
 def list_documents(application_id: str, db: Session = Depends(get_db)):
     return db.query(Document).filter(Document.application_id == application_id).all()
+
+
+@doc_router.get("/{document_id}/download")
+def download_document(document_id: str, db: Session = Depends(get_db)):
+    document = db.get(Document, document_id)
+    if not document:
+        raise HTTPException(404, "Document not found")
+
+    if not document.storage_path:
+        raise HTTPException(404, "No file is stored for this document")
+
+    storage_path = Path(document.storage_path)
+    if not storage_path.exists():
+        raise HTTPException(404, "File not found on disk")
+
+    suffix = storage_path.suffix.lower()
+    MIME_TYPES = {
+        ".pdf":  "application/pdf",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".xlsm": "application/vnd.ms-excel.sheet.macroEnabled.12",
+        ".png":  "image/png",
+        ".jpg":  "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".tiff": "image/tiff",
+        ".txt":  "text/plain",
+        ".csv":  "text/csv",
+    }
+    media_type = MIME_TYPES.get(suffix, "application/octet-stream")
+
+    # PDFs and images open inline in the browser; everything else is a download
+    INLINE_TYPES = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".txt"}
+    content_disposition = (
+        f"inline; filename=\"{document.filename}\""
+        if suffix in INLINE_TYPES
+        else f"attachment; filename=\"{document.filename}\""
+    )
+
+    with open(storage_path, "rb") as f:
+        content = f.read()
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={"Content-Disposition": content_disposition},
+    )

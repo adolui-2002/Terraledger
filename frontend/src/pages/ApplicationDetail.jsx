@@ -1,11 +1,11 @@
 import {
-  AlertTriangle, CheckCircle2, FileText, PlayCircle, ShieldAlert,
+  AlertTriangle, CheckCircle2, Download, FileText, PlayCircle, ShieldAlert,
   Sparkles, Upload, XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { Applications, Review } from "../api/client";
+import { Applications, Documents, Review } from "../api/client";
 import AssistantPanel from "../components/AssistantPanel";
 import RiskBadge from "../components/RiskBadge";
 import ScoreGauge from "../components/ScoreGauge";
@@ -15,6 +15,7 @@ import TopBar from "../components/TopBar";
 
 const DOC_TYPES = ["APPLICATION_FORM", "PROPOSAL", "BUDGET", "CERTIFICATE", "PREVIOUS_REPORT", "PHOTO", "OTHER"];
 const NON_REPROCESSABLE = ["UNDER_REVIEW", "NEEDS_INFO", "APPROVED", "REJECTED", "CLOSED"];
+const INLINE_EXTENSIONS = new Set([".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".txt"]);
 
 const STATUS_ICON = {
   PASS: <CheckCircle2 size={14} className="text-moss" />,
@@ -174,9 +175,25 @@ export default function ApplicationDetail() {
                     <span className="text-sm text-ink_text-primary">{d.filename}</span>
                     <span className="font-mono text-[10px] uppercase text-ink_text-faint">{d.doc_type}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-ink_text-muted">
+                  <div className="flex items-center gap-3 text-xs text-ink_text-muted">
                     {d.ocr_used && <span>OCR conf. {(d.ocr_confidence * 100).toFixed(0)}%</span>}
                     <span className="font-mono uppercase">{d.detected_language}</span>
+                    {(() => {
+                      const ext = d.filename.slice(d.filename.lastIndexOf(".")).toLowerCase();
+                      const isInline = INLINE_EXTENSIONS.has(ext);
+                      return (
+                        <a
+                          href={Documents.downloadUrl(d.id)}
+                          target={isInline ? "_blank" : undefined}
+                          rel={isInline ? "noopener noreferrer" : undefined}
+                          download={isInline ? undefined : d.filename}
+                          className="rounded p-1 text-ink_text-muted transition-colors hover:bg-gold/15 hover:text-gold"
+                          title={isInline ? `Open ${d.filename}` : `Download ${d.filename}`}
+                        >
+                          <Download size={13} />
+                        </a>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}

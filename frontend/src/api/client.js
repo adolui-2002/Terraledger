@@ -23,6 +23,10 @@ export const Applications = {
   audit: (id) => api.get(`/api/v1/applications/${id}/audit`).then((r) => r.data),
 };
 
+export const Documents = {
+  downloadUrl: (documentId) => `${baseURL}/api/v1/documents/${documentId}/download`,
+};
+
 export const Review = {
   reviewers: () => api.get("/api/v1/reviewers").then((r) => r.data),
   addReviewer: (payload) => api.post("/api/v1/reviewers", payload).then((r) => r.data),

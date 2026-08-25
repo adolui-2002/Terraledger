@@ -29,6 +29,7 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql+psycopg2://eco_admin:eco_pass@db:5432/eco_review
+      DOCUMENT_STORAGE_PATH: /app/storage/documents
     depends_on:
       db:
         condition: service_healthy

@@ -13,8 +13,11 @@ Run inside the backend container:
 """
 from __future__ import annotations
 
+import io
 import random
+from pathlib import Path
 
+from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.models import Application, Document
 from app.models.enums import DataSensitivity
@@ -45,12 +48,62 @@ FORM_TEXT = "Application form for {scheme}. Applicant: {name}. Requested amount 
 LOW_QUALITY_TEXT = "prjct enviromnt schme app.. amt ~ rs {amount} (scan unclear) sig illegible"
 
 
+def _make_pdf_bytes(text: str) -> bytes:
+    """Render text as a real, openable PDF using fpdf2."""
+    from fpdf import FPDF
+    # Replace ₹ with Rs. — built-in PDF fonts are latin-1 only
+    safe_text = text.replace("₹", "Rs.")
+    pdf = FPDF()
+    pdf.set_margins(20, 20, 20)
+    pdf.add_page()
+    pdf.set_font("Helvetica", size=11)
+    pdf.multi_cell(0, 7, safe_text)
+    return pdf.output()
+
+
+def _make_xlsx_bytes(text: str) -> bytes:
+    """Render budget text as a real XLSX workbook using openpyxl."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Budget"
+    # Split on commas/periods to put each item on its own row
+    for i, line in enumerate(text.replace(". ", "\n").replace(", ", "\n").splitlines(), start=1):
+        ws.cell(row=i, column=1, value=line.strip())
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def _file_bytes(filename: str, text: str) -> bytes:
+    """Return properly formatted bytes for the given filename extension."""
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".pdf":
+        return _make_pdf_bytes(text)
+    if suffix in (".xlsx", ".xlsm"):
+        return _make_xlsx_bytes(text)
+    # .txt, .jpg placeholders, etc. — plain UTF-8
+    return text.encode("utf-8")
+
+
 def _mk_doc(application_id: str, doc_type: str, filename: str, text: str, ocr_used=False, ocr_conf=None):
+    data = _file_bytes(filename, text)
+    hash_ = content_hash(data)
+
+    settings = get_settings()
+    # application_id is None at call time (flushed later); we write the file
+    # in a staging dir keyed by hash and move it once the id is known.
+    # Simpler: write into a temp dir named by hash and rename on add().
+    staging_path = Path(settings.document_storage_path) / "_staging" / f"{hash_[:12]}_{filename}"
+    staging_path.parent.mkdir(parents=True, exist_ok=True)
+    staging_path.write_bytes(data)
+
     return Document(
         application_id=application_id,
         filename=filename,
         doc_type=doc_type,
-        content_hash=content_hash(text.encode()),
+        content_hash=hash_,
+        storage_path=str(staging_path),  # updated in add() once app id is known
         raw_text=text,
         ocr_used=ocr_used,
         ocr_confidence=ocr_conf,
@@ -77,9 +130,21 @@ def generate(db, n_normal: int = 6):
 
     def add(app: Application, docs: list[Document]):
         db.add(app)
-        db.flush()
+        db.flush()  # app.id is now assigned
+
+        settings = get_settings()
+        app_dir = Path(settings.document_storage_path) / app.id
+        app_dir.mkdir(parents=True, exist_ok=True)
+
         for d in docs:
             d.application_id = app.id
+            # Move the staged file into the per-application directory
+            if d.storage_path:
+                staging = Path(d.storage_path)
+                dest = app_dir / staging.name
+                if staging.exists():
+                    staging.rename(dest)
+                d.storage_path = str(dest)
             db.add(d)
         db.commit()
         db.refresh(app)
