@@ -129,6 +129,17 @@ class AssistantAnswer(BaseModel):
     sources: list[str] = []
 
 
+class ApplicationSummaryOut(BaseModel):
+    summary: str
+    structured_digest: str
+    document_count: int
+    has_fraud_signals: bool
+    has_validation_failures: bool
+    ai_recommendation: str | None
+    risk_level: str | None
+    total_score: float | None
+
+
 class AnalyticsSummary(BaseModel):
     total_applications: int
     by_status: dict[str, int]

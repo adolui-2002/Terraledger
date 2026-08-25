@@ -1,11 +1,11 @@
 import {
-  AlertTriangle, CheckCircle2, Download, FileText, PlayCircle, ShieldAlert,
-  Sparkles, Upload, XCircle,
+  AlertTriangle, CheckCircle2, Download, FileText, Loader2, PlayCircle,
+  ShieldAlert, Sparkles, Upload, XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { Applications, Documents, Review } from "../api/client";
+import { Applications, Assistant, Documents, Review } from "../api/client";
 import AssistantPanel from "../components/AssistantPanel";
 import RiskBadge from "../components/RiskBadge";
 import ScoreGauge from "../components/ScoreGauge";
@@ -30,6 +30,9 @@ export default function ApplicationDetail() {
   const [reviewers, setReviewers] = useState([]);
   const [docType, setDocType] = useState("APPLICATION_FORM");
   const [busy, setBusy] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
   const [decisionForm, setDecisionForm] = useState({ reviewer_name: "", human_decision: "APPROVED", override_reason: "", notes: "" });
   const [error, setError] = useState("");
 
@@ -47,6 +50,19 @@ export default function ApplicationDetail() {
   if (!app) return <div className="p-8 text-ink_text-muted">Loading…</div>;
 
   const latestScore = app.scores.length ? app.scores[app.scores.length - 1] : null;
+
+  async function handleGenerateSummary() {
+    setSummaryLoading(true);
+    setSummaryError("");
+    try {
+      const result = await Assistant.summarize(id);
+      setSummary(result);
+    } catch (err) {
+      setSummaryError(err?.response?.data?.detail || "Could not generate summary.");
+    } finally {
+      setSummaryLoading(false);
+    }
+  }
 
   async function handleUpload(e) {
     const file = e.target.files[0];
@@ -151,6 +167,92 @@ export default function ApplicationDetail() {
               </div>
             )}
           </div>
+
+          {/* AI Summary */}
+          {app.scores.length > 0 && (
+            <div className="panel p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-display text-lg font-semibold text-ink_text-primary flex items-center gap-2">
+                  <Sparkles size={16} className="text-gold" />
+                  AI Summary
+                </h3>
+                <button
+                  className="btn-secondary py-1.5 px-3 text-xs"
+                  onClick={handleGenerateSummary}
+                  disabled={summaryLoading}
+                >
+                  {summaryLoading
+                    ? <><Loader2 size={12} className="animate-spin" /> Generating…</>
+                    : summary ? "Regenerate" : "Generate summary"
+                  }
+                </button>
+              </div>
+
+              {summaryError && (
+                <p className="text-sm text-clay-soft">{summaryError}</p>
+              )}
+
+              {!summary && !summaryLoading && !summaryError && (
+                <p className="text-sm text-ink_text-faint">
+                  Click "Generate summary" to get an AI-assisted overview of this application for reviewer briefing.
+                </p>
+              )}
+
+              {summary && (
+                <div className="space-y-4">
+                  {/* Prose summary */}
+                  <p className="text-sm leading-relaxed text-ink_text-primary">{summary.summary}</p>
+
+                  {/* Quick-glance chips */}
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full border border-border px-2.5 py-1 text-[11px] text-ink_text-muted">
+                      {summary.document_count} document{summary.document_count !== 1 ? "s" : ""}
+                    </span>
+                    {summary.total_score != null && (
+                      <span className="rounded-full border border-border px-2.5 py-1 text-[11px] font-mono text-ink_text-muted">
+                        score {summary.total_score}/100
+                      </span>
+                    )}
+                    {summary.risk_level && (
+                      <span className={`rounded-full border px-2.5 py-1 text-[11px] font-mono uppercase ${
+                        summary.risk_level === "HIGH"
+                          ? "border-clay-dim text-clay-soft"
+                          : summary.risk_level === "MEDIUM"
+                          ? "border-gold-dim text-gold-soft"
+                          : "border-moss-dim text-moss-soft"
+                      }`}>
+                        {summary.risk_level} risk
+                      </span>
+                    )}
+                    {summary.has_fraud_signals && (
+                      <span className="rounded-full border border-clay-dim px-2.5 py-1 text-[11px] text-clay-soft">
+                        ⚠ fraud signals
+                      </span>
+                    )}
+                    {summary.has_validation_failures && (
+                      <span className="rounded-full border border-gold-dim px-2.5 py-1 text-[11px] text-gold-soft">
+                        ⚠ validation failures
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Structured digest toggle */}
+                  <details className="group">
+                    <summary className="cursor-pointer text-[11px] text-ink_text-faint hover:text-ink_text-muted select-none">
+                      View structured digest used as AI input ▸
+                    </summary>
+                    <pre className="mt-2 rounded-lg border border-border bg-ink-soft p-3 text-[11px] leading-relaxed text-ink_text-muted whitespace-pre-wrap">
+                      {summary.structured_digest}
+                    </pre>
+                  </details>
+
+                  <p className="text-[10px] text-ink_text-faint italic">
+                    AI-generated summary for reviewer briefing only. Final determination rests with the assigned reviewer.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Documents */}
           <div className="panel p-6">

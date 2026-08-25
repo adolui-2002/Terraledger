@@ -52,9 +52,27 @@ class MockAIProvider(BaseAIProvider):
     def summarize(self, text: str, max_sentences: int = 3) -> str:
         if not text:
             return "No extractable text was found in the submitted documents."
-        sentences = [s.strip() for s in text.replace("\n", " ").split(".") if s.strip()]
-        summary = ". ".join(sentences[:max_sentences])
-        return (summary + ".") if summary else "Document content was too short to summarize."
+        # For structured digest text (from summarization_service), surface
+        # the most reviewer-relevant lines rather than blindly truncating.
+        lines = [l.strip() for l in text.splitlines() if l.strip()]
+        # Priority order: score/recommendation, fraud, validation failures, docs
+        priority_keywords = ["ai score", "recommendation", "fraud", "failure", "warning", "extracted", "submitted"]
+        selected: list[str] = []
+        for kw in priority_keywords:
+            for line in lines:
+                if kw in line.lower() and line not in selected:
+                    selected.append(line)
+                    if len(selected) >= max_sentences:
+                        break
+            if len(selected) >= max_sentences:
+                break
+        # Pad with remaining lines if needed
+        for line in lines:
+            if line not in selected:
+                selected.append(line)
+            if len(selected) >= max_sentences:
+                break
+        return " ".join(selected)
 
     def explain_score(self, breakdown: dict, positives: list[str], concerns: list[str]) -> str:
         lines = ["Score breakdown:"]

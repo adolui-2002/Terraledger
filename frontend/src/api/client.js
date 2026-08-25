@@ -49,6 +49,8 @@ export const Assistant = {
     api
       .post("/api/v1/assistant/ask", { question, application_id: applicationId || null })
       .then((r) => r.data),
+  summarize: (applicationId) =>
+    api.get(`/api/v1/assistant/applications/${applicationId}/summary`).then((r) => r.data),
 };
 
 export default api;
