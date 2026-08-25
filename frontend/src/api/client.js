@@ -44,6 +44,17 @@ export const Analytics = {
   timeline: () => api.get("/api/v1/analytics/timeline").then((r) => r.data),
 };
 
+export const Reports = {
+  applicationsCSVUrl: (params = {}) => {
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v))
+    ).toString();
+    return `${baseURL}/api/v1/reports/applications.csv${qs ? "?" + qs : ""}`;
+  },
+  applicationPDFUrl: (applicationId) =>
+    `${baseURL}/api/v1/reports/applications/${applicationId}/pdf`,
+};
+
 export const Assistant = {
   ask: (question, applicationId) =>
     api

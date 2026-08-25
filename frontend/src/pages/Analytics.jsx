@@ -1,19 +1,31 @@
+import { Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   Bar, BarChart, CartesianGrid, Line, LineChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
-import { Analytics as AnalyticsApi } from "../api/client";
+import { Analytics as AnalyticsApi, Reports } from "../api/client";
 import StatCard from "../components/StatCard";
 import TopBar from "../components/TopBar";
 
 const CHART_GRID = "#24413A";
 const CHART_TEXT = "#8FA89E";
 
+const STATUS_FILTER_OPTIONS = [
+  { value: "", label: "All statuses" },
+  { value: "SUBMITTED", label: "Submitted" },
+  { value: "REVIEW_PENDING", label: "Review pending" },
+  { value: "UNDER_REVIEW", label: "Under review" },
+  { value: "APPROVED", label: "Approved" },
+  { value: "REJECTED", label: "Rejected" },
+  { value: "CLOSED", label: "Closed" },
+];
+
 export default function Analytics() {
   const [summary, setSummary] = useState(null);
   const [timeline, setTimeline] = useState({});
+  const [exportStatus, setExportStatus] = useState("");
 
   useEffect(() => {
     AnalyticsApi.summary().then(setSummary);
@@ -23,13 +35,24 @@ export default function Analytics() {
   const statusData = summary
     ? Object.entries(summary.by_status).map(([name, count]) => ({ name: name.replaceAll("_", " "), count }))
     : [];
+  const riskData = summary
+    ? Object.entries(summary.by_risk).map(([name, count]) => ({ name, count }))
+    : [];
   const timelineData = Object.entries(timeline).map(([date, count]) => ({ date, count }));
+
+  function handleExportCSV() {
+    const url = Reports.applicationsCSVUrl({ status: exportStatus || undefined });
+    const a = document.createElement("a");
+    a.href = url;
+    a.click();
+  }
 
   return (
     <div>
       <TopBar title="Analytics" subtitle="Operational metrics across the review pipeline" showNew={false} />
 
       <div className="px-8 py-6 space-y-6">
+        {/* KPI cards */}
         <div className="grid grid-cols-2 gap-5 md:grid-cols-4">
           <StatCard label="Total applications" value={summary?.total_applications ?? "—"} accent="gold" />
           <StatCard label="Average score" value={summary?.average_score ?? "—"} accent="teal" />
@@ -46,6 +69,7 @@ export default function Analytics() {
           />
         </div>
 
+        {/* Charts */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="panel p-6">
             <h3 className="mb-4 font-display text-lg font-semibold text-ink_text-primary">Applications by status</h3>
@@ -72,7 +96,69 @@ export default function Analytics() {
               </LineChart>
             </ResponsiveContainer>
           </div>
+
+          <div className="panel p-6">
+            <h3 className="mb-4 font-display text-lg font-semibold text-ink_text-primary">Applications by risk level</h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={riskData} layout="vertical">
+                <CartesianGrid stroke={CHART_GRID} horizontal={false} />
+                <XAxis type="number" tick={{ fill: CHART_TEXT, fontSize: 11 }} allowDecimals={false} />
+                <YAxis type="category" dataKey="name" tick={{ fill: CHART_TEXT, fontSize: 11 }} width={60} />
+                <Tooltip contentStyle={{ background: "#182D27", border: "1px solid #24413A", borderRadius: 8 }} />
+                <Bar dataKey="count" fill="#5FAE86" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Export panel */}
+          <div className="panel p-6 flex flex-col justify-between">
+            <div>
+              <h3 className="mb-1 font-display text-lg font-semibold text-ink_text-primary flex items-center gap-2">
+                <Download size={16} className="text-gold" />
+                Export Register
+              </h3>
+              <p className="mb-5 text-sm text-ink_text-muted">
+                Download the full applications register as a CSV file. Includes scores, risk levels, AI
+                recommendations, fraud signal counts, and human review decisions.
+              </p>
+
+              <div className="mb-4">
+                <label className="label">Filter by status (optional)</label>
+                <select
+                  className="input"
+                  value={exportStatus}
+                  onChange={(e) => setExportStatus(e.target.value)}
+                >
+                  {STATUS_FILTER_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <button
+              className="btn-primary w-full justify-center"
+              onClick={handleExportCSV}
+            >
+              <Download size={14} />
+              Download CSV
+            </button>
+          </div>
         </div>
+
+        {/* Flags summary */}
+        {summary && (
+          <div className="grid grid-cols-2 gap-5 md:grid-cols-2">
+            <div className="panel p-5">
+              <p className="eyebrow mb-1">Duplicates flagged</p>
+              <p className="text-2xl font-display font-semibold text-clay-soft">{summary.duplicates_flagged}</p>
+            </div>
+            <div className="panel p-5">
+              <p className="eyebrow mb-1">Missing documents flagged</p>
+              <p className="text-2xl font-display font-semibold text-gold-soft">{summary.missing_documents_flagged}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

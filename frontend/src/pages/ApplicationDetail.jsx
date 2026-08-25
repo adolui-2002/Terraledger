@@ -5,7 +5,7 @@ import {
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { Applications, Assistant, Documents, Review } from "../api/client";
+import { Applications, Assistant, Documents, Reports, Review } from "../api/client";
 import AssistantPanel from "../components/AssistantPanel";
 import RiskBadge from "../components/RiskBadge";
 import ScoreGauge from "../components/ScoreGauge";
@@ -134,6 +134,15 @@ export default function ApplicationDetail() {
                   {app.scores.length ? "Re-run pipeline" : "Run pipeline"}
                 </button>
               )}
+              <a
+                href={Reports.applicationPDFUrl(app.id)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary py-1.5 px-3 text-xs flex items-center gap-1.5"
+                title="Download reviewer report as PDF"
+              >
+                <Download size={13} /> Export PDF
+              </a>
             </div>
             {error && (
               <p className="mt-3 rounded-lg border border-clay-dim bg-clay-dim/20 px-3 py-2 text-sm text-clay-soft">

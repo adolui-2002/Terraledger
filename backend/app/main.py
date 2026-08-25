@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import analytics, applications, assistant, audit, documents, ml, review
+from app.api import analytics, applications, assistant, audit, documents, ml, reports, review
 from app.config import get_settings
 from app.database import SessionLocal, init_db
 from app.models import Reviewer
@@ -36,6 +36,7 @@ app.include_router(analytics.router)
 app.include_router(assistant.router)
 app.include_router(audit.router)
 app.include_router(ml.router)
+app.include_router(reports.router)
 
 
 @app.exception_handler(IllegalTransitionError)
