@@ -34,6 +34,17 @@ class Settings(BaseSettings):
     rules_dir: str = str(Path(__file__).parent / "rules")
     ml_model_path: str = str(Path(__file__).parent / "ml" / "artifacts")
 
+    # Integration adapters — mock | live
+    portal_adapter: str = "mock"
+    portal_base_url: str = ""
+    portal_api_key: str = ""
+
+    messaging_adapter: str = "mock"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

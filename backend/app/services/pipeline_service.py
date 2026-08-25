@@ -27,6 +27,8 @@ from app.models import Application, ExtractedField
 from app.models.enums import ApplicationStatus
 from app.services import audit_service, fraud_service, scoring_service, validation_service, workflow_service
 from app.services.extraction_service import extract_structured_fields
+from app.services.messaging_adapter import get_messaging_adapter
+from app.services.portal_adapter import get_portal_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +116,34 @@ def run_pipeline(db: Session, application: Application) -> Application:
 
     db.commit()
     db.refresh(application)
+
+    # Notify applicant that processing is complete and under review
+    try:
+        messaging = get_messaging_adapter()
+        messaging.notify_applicant(
+            application_id=application.id,
+            reference_code=application.reference_code,
+            applicant_name=application.applicant_name,
+            event="APPLICATION_PROCESSING",
+            message=(
+                f"Dear {application.applicant_name}, your application "
+                f"{application.reference_code} has been processed and is now "
+                "pending human review. You will be notified once a decision is made."
+            ),
+        )
+        # Sync status back to portal
+        portal = get_portal_adapter()
+        portal.sync_application_status(
+            application_id=application.id,
+            reference_code=application.reference_code,
+            status=application.status,
+            scheme_name=application.scheme_name,
+        )
+    except Exception as exc:
+        # Adapter failures must never block the pipeline
+        logger.warning("Adapter call failed after pipeline", extra={"error": str(exc),
+                       "application_id": application.id})
+
     logger.info(
         "Pipeline complete — application routed to review",
         extra={"application_id": application.id, "reference": application.reference_code},

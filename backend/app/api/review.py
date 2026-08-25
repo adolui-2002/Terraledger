@@ -7,6 +7,8 @@ from app.database import get_db
 from app.models import Application, ReviewDecision, Reviewer
 from app.models.enums import ApplicationStatus
 from app.services import audit_service, workflow_service
+from app.services.messaging_adapter import get_messaging_adapter
+from app.services.portal_adapter import get_portal_adapter
 
 router = APIRouter(prefix="/api/v1", tags=["review"])
 
@@ -127,6 +129,49 @@ def submit_decision(application_id: str, payload: schemas.ReviewDecisionIn, db: 
         )
         db.commit()
         db.refresh(decision)
+
+        # Notify applicant and sync portal — failures must not block the decision
+        try:
+            decision_labels = {
+                "APPROVED": "approved",
+                "REJECTED": "not approved at this time",
+                "NEEDS_INFO": "placed on hold — additional information is required",
+            }
+            messaging = get_messaging_adapter()
+            messaging.notify_applicant(
+                application_id=application_id,
+                reference_code=application.reference_code,
+                applicant_name=application.applicant_name,
+                event="DECISION_MADE",
+                message=(
+                    f"Dear {application.applicant_name}, your application "
+                    f"{application.reference_code} has been "
+                    f"{decision_labels.get(payload.human_decision, payload.human_decision)}."
+                    + (f" Reason: {payload.notes}" if payload.notes else "")
+                ),
+            )
+            if payload.human_decision == "NEEDS_INFO":
+                messaging.notify_applicant(
+                    application_id=application_id,
+                    reference_code=application.reference_code,
+                    applicant_name=application.applicant_name,
+                    event="NEEDS_INFO",
+                    message=(
+                        f"Dear {application.applicant_name}, additional information is "
+                        f"required for your application {application.reference_code}. "
+                        + (payload.override_reason or payload.notes or "Please contact the review office.")
+                    ),
+                )
+            portal = get_portal_adapter()
+            portal.sync_application_status(
+                application_id=application_id,
+                reference_code=application.reference_code,
+                status=application.status,
+                scheme_name=application.scheme_name,
+            )
+        except Exception:
+            pass  # adapter errors are logged by the adapters themselves
+
         return decision
     except HTTPException:
         raise
