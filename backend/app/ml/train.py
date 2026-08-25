@@ -88,18 +88,24 @@ def train_model(db) -> tuple[object | None, ModelMetadata | None, str | None]:
 
 
 if __name__ == "__main__":
+    import logging as _logging
+    from app.logging_config import configure_logging
+    configure_logging()
+    _logger = _logging.getLogger(__name__)
+
     init_db()
     session = SessionLocal()
     try:
         model, metadata, error = train_model(session)
         if error:
-            print(f"Training skipped: {error}")
+            _logger.warning("Training skipped", extra={"reason": error})
         else:
-            acc_txt = f"{metadata.train_accuracy:.2f}" if metadata.train_accuracy >= 0 else "n/a (too few samples to hold out)"
-            print(
-                f"Trained model {metadata.version} on {metadata.n_samples} samples "
-                f"({metadata.n_positive} positive / {metadata.n_negative} negative). "
-                f"Held-out accuracy: {acc_txt}"
+            acc_txt = f"{metadata.train_accuracy:.2f}" if metadata.train_accuracy >= 0 else "n/a"
+            _logger.info(
+                "Model trained",
+                extra={"version": metadata.version, "n_samples": metadata.n_samples,
+                       "n_positive": metadata.n_positive, "n_negative": metadata.n_negative,
+                       "accuracy": acc_txt},
             )
     finally:
         session.close()

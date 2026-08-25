@@ -14,6 +14,7 @@ Run inside the backend container:
 from __future__ import annotations
 
 import io
+import logging
 import random
 from pathlib import Path
 
@@ -23,6 +24,8 @@ from app.models import Application, Document
 from app.models.enums import DataSensitivity
 from app.services import extraction_service, pipeline_service
 from app.services.extraction_service import content_hash
+
+logger = logging.getLogger(__name__)
 
 APPLICANTS = [
     "Meera Chatterjee", "Rohan Das", "Fatima Sheikh", "Arjun Nair", "Priya Ghosh",
@@ -284,32 +287,43 @@ def generate(db, n_normal: int = 6):
         try:
             pipeline_service.run_pipeline(db, app)
         except Exception as exc:  # keep seeding even if one record fails
-            print(f"  ! pipeline failed for {app.reference_code}: {exc}")
+            logger.error("Pipeline failed during seeding",
+                         extra={"reference": app.reference_code, "error": str(exc)})
 
     return created
 
 
 if __name__ == "__main__":
+    from app.logging_config import configure_logging
+    configure_logging()
+
     init_db()
     session = SessionLocal()
     try:
         apps = generate(session)
-        print(f"Seeded {len(apps)} synthetic applications:")
+        logger.info("Seeding complete", extra={"count": len(apps)})
         for a in apps:
             latest = sorted(a.scores, key=lambda s: s.created_at)[-1] if a.scores else None
             score_txt = f"{latest.total_score}/100 ({latest.risk_level})" if latest else "no score"
-            print(f"  {a.reference_code:10s} [{a.synthetic_category:12s}] {a.applicant_name:20s} -> {score_txt}")
+            logger.info(
+                "Seeded application",
+                extra={"reference": a.reference_code, "category": a.synthetic_category,
+                       "applicant": a.applicant_name, "score": score_txt},
+            )
 
-        print("\nTraining the explainable ML scoring model on the seeded data...")
+        logger.info("Training ML model on seeded data...")
         from app.ml.train import train_model
 
         model, metadata, error = train_model(session)
         if error:
-            print(f"  ML training skipped: {error}")
+            logger.warning("ML training skipped", extra={"reason": error})
         else:
-            print(f"  Trained {metadata.version} on {metadata.n_samples} samples "
-                  f"({metadata.n_positive} positive / {metadata.n_negative} negative).")
-            print("  Re-scoring seeded applications with the new model...")
+            logger.info(
+                "ML model trained",
+                extra={"version": metadata.version, "n_samples": metadata.n_samples,
+                       "n_positive": metadata.n_positive, "n_negative": metadata.n_negative},
+            )
+            logger.info("Re-scoring seeded applications with new model...")
             from app.ml import ml_scoring_service
 
             ml_scoring_service.invalidate_cache()
@@ -317,6 +331,7 @@ if __name__ == "__main__":
                 try:
                     pipeline_service.run_pipeline(session, a)
                 except Exception as exc:
-                    print(f"  ! re-scoring failed for {a.reference_code}: {exc}")
+                    logger.error("Re-scoring failed",
+                                 extra={"reference": a.reference_code, "error": str(exc)})
     finally:
         session.close()

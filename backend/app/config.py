@@ -18,6 +18,7 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     secret_key: str = "change-me-in-production"
+    log_level: str = "INFO"  # DEBUG | INFO | WARNING | ERROR
 
     database_url: str = "sqlite:///./eco_review_dev.db"
 

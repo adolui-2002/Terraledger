@@ -5,11 +5,15 @@ only place in the codebase allowed to change `application.status`.
 """
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.models import Application
 from app.models.enums import ApplicationStatus
 from app.services import audit_service
+
+logger = logging.getLogger(__name__)
 
 
 class IllegalTransitionError(Exception):
@@ -46,10 +50,16 @@ def transition(db: Session, application: Application, new_status: ApplicationSta
         db, application.id, actor, "STATUS_CHANGE",
         {"from": previous, "to": new_status.value, **(details or {})},
     )
+    logger.info(
+        "Status transition",
+        extra={"application_id": application.id, "from": previous,
+               "to": new_status.value, "actor": actor, "forced": force},
+    )
     return application
 
 
 def assign_reviewer(db: Session, application: Application, reviewer_name: str, actor: str = "system") -> Application:
     application.assigned_reviewer = reviewer_name
     audit_service.log(db, application.id, actor, "REVIEWER_ASSIGNED", {"reviewer": reviewer_name})
+    logger.info("Reviewer assigned", extra={"application_id": application.id, "reviewer": reviewer_name})
     return application

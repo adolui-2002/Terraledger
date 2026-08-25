@@ -9,6 +9,7 @@ the final call.
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import datetime
 
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ from app.models import Application, Document, FraudSignal
 from app.models.enums import FraudSeverity
 from app.services.extraction_service import extract_dates
 from app.services.validation_service import rules_for_scheme
+
+logger = logging.getLogger(__name__)
 
 
 def _applicant_fingerprint(application: Application) -> str:
@@ -116,4 +119,13 @@ def run_fraud_checks(db: Session, application: Application) -> list[FraudSignal]
     )
     for s in signals:
         db.add(s)
+    if signals:
+        logger.warning(
+            "Fraud checks complete — signals found",
+            extra={"application_id": application.id,
+                   "signal_types": [s.signal_type for s in signals],
+                   "severities": [s.severity for s in signals]},
+        )
+    else:
+        logger.info("Fraud checks complete — no signals", extra={"application_id": application.id})
     return signals

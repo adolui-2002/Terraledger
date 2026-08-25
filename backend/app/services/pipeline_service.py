@@ -19,12 +19,16 @@ error message.
 """
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy.orm import Session
 
 from app.models import Application, ExtractedField
 from app.models.enums import ApplicationStatus
 from app.services import audit_service, fraud_service, scoring_service, validation_service, workflow_service
 from app.services.extraction_service import extract_structured_fields
+
+logger = logging.getLogger(__name__)
 
 NON_REPROCESSABLE_STATUSES = {
     ApplicationStatus.UNDER_REVIEW.value,
@@ -47,6 +51,12 @@ def run_pipeline(db: Session, application: Application) -> Application:
         )
 
     is_rerun = application.status != ApplicationStatus.SUBMITTED.value
+    logger.info(
+        "Pipeline started",
+        extra={"application_id": application.id, "reference": application.reference_code,
+               "is_rerun": is_rerun, "current_status": application.status},
+    )
+
     workflow_service.transition(db, application, ApplicationStatus.PROCESSING, actor="system", force=True)
     if is_rerun:
         audit_service.log(db, application.id, "system", "PIPELINE_RERUN", {})
@@ -62,18 +72,29 @@ def run_pipeline(db: Session, application: Application) -> Application:
                 field_value=value,
                 confidence=0.75 if doc.ocr_used else 0.95,
             ))
+    doc_count = len(application.documents)
     audit_service.log(db, application.id, "system", "EXTRACTION_COMPLETE",
-                       {"documents_processed": len(application.documents)})
+                       {"documents_processed": doc_count})
+    logger.info("Extraction complete", extra={"application_id": application.id, "documents_processed": doc_count})
 
     validation_results = validation_service.run_validation(db, application)
     summary = validation_service.validation_summary(validation_results)
     workflow_service.transition(db, application, ApplicationStatus.VALIDATED, actor="system", details=summary,
                                  force=True)
+    logger.info(
+        "Validation complete",
+        extra={"application_id": application.id, **summary},
+    )
 
     fraud_signals = fraud_service.run_fraud_checks(db, application)
     if fraud_signals:
         audit_service.log(db, application.id, "system", "FRAUD_SIGNALS_DETECTED",
                            {"count": len(fraud_signals), "types": [s.signal_type for s in fraud_signals]})
+        logger.warning(
+            "Fraud signals detected",
+            extra={"application_id": application.id, "count": len(fraud_signals),
+                   "types": [s.signal_type for s in fraud_signals]},
+        )
 
     db.flush()
     score = scoring_service.compute_score(db, application)
@@ -83,9 +104,18 @@ def run_pipeline(db: Session, application: Application) -> Application:
         details={"score": score.total_score, "risk": score.risk_level, "recommendation": score.ai_recommendation},
         force=True,
     )
+    logger.info(
+        "Scoring complete",
+        extra={"application_id": application.id, "score": score.total_score,
+               "risk": score.risk_level, "recommendation": score.ai_recommendation},
+    )
 
     workflow_service.transition(db, application, ApplicationStatus.REVIEW_PENDING, actor="system", force=True)
 
     db.commit()
     db.refresh(application)
+    logger.info(
+        "Pipeline complete — application routed to review",
+        extra={"application_id": application.id, "reference": application.reference_code},
+    )
     return application
