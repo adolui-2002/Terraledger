@@ -76,10 +76,20 @@ def _make_pdf_bytes(text: str) -> bytes:
     from fpdf import FPDF
     # Replace ₹ with Rs. — built-in PDF fonts are latin-1 only
     safe_text = text.replace("₹", "Rs.")
+    # For Unicode support, we need to encode/decode carefully
+    # Built-in fonts only support latin-1, so we'll transliterate or replace
     pdf = FPDF()
     pdf.set_margins(20, 20, 20)
     pdf.add_page()
     pdf.set_font("Helvetica", size=11)
+    # Replace common Unicode characters with ASCII approximations for PDF
+    import unicodedata
+    safe_text = ''.join(
+        c if ord(c) < 256 else '?'
+        for c in unicodedata.normalize('NFKD', safe_text)
+        .encode('ASCII', 'ignore')
+        .decode('ASCII')
+    )
     pdf.multi_cell(0, 7, safe_text)
     return pdf.output()
 

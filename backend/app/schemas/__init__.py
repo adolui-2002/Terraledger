@@ -46,7 +46,7 @@ class FraudSignalOut(BaseModel):
 
 
 class ScoreOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
     total_score: float
     breakdown: dict
     max_breakdown: dict
