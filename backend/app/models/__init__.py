@@ -9,12 +9,14 @@ from app.models.enums import (
     RiskLevel,
     ValidationStatus,
 )
+from app.models.feedback import AIFeedback
 from app.models.review import ReviewDecision, Reviewer
 from app.models.scoring import FraudSignal, Score
 from app.models.validation import ValidationResult
 
 __all__ = [
     "Application",
+    "AIFeedback",
     "AuditLog",
     "Document",
     "ExtractedField",

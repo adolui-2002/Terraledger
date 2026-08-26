@@ -165,3 +165,31 @@ class MLTrainResponse(BaseModel):
     success: bool
     message: str
     status: MLModelStatus
+
+
+class AIFeedbackIn(BaseModel):
+    reviewer_name: str
+    rating: str           # HELPFUL | PARTIALLY_HELPFUL | NOT_HELPFUL
+    score_accuracy: str   # ACCURATE | PARTIALLY_ACCURATE | INACCURATE
+    comment: str | None = None
+    score_id: str | None = None
+
+
+class AIFeedbackOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    application_id: str
+    score_id: str | None
+    reviewer_name: str
+    rating: str
+    score_accuracy: str
+    comment: str | None
+    submitted_at: datetime
+
+
+class FeedbackSummary(BaseModel):
+    total_feedback: int
+    rating_distribution: dict[str, int]
+    accuracy_distribution: dict[str, int]
+    helpful_rate: float
+    accurate_rate: float

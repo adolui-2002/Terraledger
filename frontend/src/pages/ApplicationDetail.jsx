@@ -1,11 +1,11 @@
 import {
-  AlertTriangle, CheckCircle2, Download, FileText, Loader2, PlayCircle,
-  ShieldAlert, Sparkles, Upload, XCircle,
+  AlertTriangle, CheckCircle2, Download, FileText, Loader2, MessageSquare,
+  PlayCircle, ShieldAlert, Sparkles, ThumbsDown, ThumbsUp, Upload, XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-import { Applications, Assistant, Documents, Reports, Review } from "../api/client";
+import { Applications, Assistant, Documents, Feedback, Reports, Review } from "../api/client";
 import AssistantPanel from "../components/AssistantPanel";
 import RiskBadge from "../components/RiskBadge";
 import ScoreGauge from "../components/ScoreGauge";
@@ -33,12 +33,19 @@ export default function ApplicationDetail() {
   const [summary, setSummary] = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState("");
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [feedbackForm, setFeedbackForm] = useState({
+    reviewer_name: "", rating: "HELPFUL", score_accuracy: "ACCURATE", comment: "",
+  });
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
   const [decisionForm, setDecisionForm] = useState({ reviewer_name: "", human_decision: "APPROVED", override_reason: "", notes: "" });
   const [error, setError] = useState("");
 
   function refresh() {
     Applications.get(id).then(setApp);
     Applications.audit(id).then(setAudit);
+    Feedback.list(id).then(setFeedbackList).catch(() => {});
   }
 
   useEffect(() => {
@@ -106,6 +113,21 @@ export default function ApplicationDetail() {
       setError(err?.response?.data?.detail || "Could not record decision.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleFeedback(e) {
+    e.preventDefault();
+    setFeedbackBusy(true);
+    try {
+      const latestScoreId = app.scores.length
+        ? app.scores[app.scores.length - 1].id
+        : undefined;
+      await Feedback.submit(id, { ...feedbackForm, score_id: latestScoreId });
+      setFeedbackSubmitted(true);
+      refresh();
+    } finally {
+      setFeedbackBusy(false);
     }
   }
 
@@ -478,6 +500,130 @@ export default function ApplicationDetail() {
           )}
 
           <AssistantPanel applicationId={id} compact />
+
+          {/* AI Feedback */}
+          {latestScore && (
+            <div className="panel p-6">
+              <h3 className="mb-4 font-display text-base font-semibold text-ink_text-primary flex items-center gap-2">
+                <MessageSquare size={15} className="text-gold" />
+                Rate AI Scoring
+              </h3>
+
+              {feedbackSubmitted ? (
+                <div className="rounded-lg border border-moss-dim bg-moss/10 px-3 py-3 text-sm text-moss-soft">
+                  ✓ Feedback recorded. Thank you for helping improve the AI.
+                  <button
+                    className="ml-2 text-xs text-ink_text-muted underline"
+                    onClick={() => setFeedbackSubmitted(false)}
+                  >
+                    Submit another
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleFeedback} className="space-y-3">
+                  <div>
+                    <label className="label">Your name</label>
+                    <select
+                      className="input"
+                      value={feedbackForm.reviewer_name}
+                      onChange={(e) => setFeedbackForm({ ...feedbackForm, reviewer_name: e.target.value })}
+                      required
+                    >
+                      <option value="">Select reviewer…</option>
+                      {reviewers.map((r) => (
+                        <option key={r.name} value={r.name}>{r.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="label">Was the AI recommendation useful?</label>
+                    <div className="flex gap-2">
+                      {[
+                        { v: "HELPFUL", icon: <ThumbsUp size={13} />, label: "Helpful" },
+                        { v: "PARTIALLY_HELPFUL", label: "Partially" },
+                        { v: "NOT_HELPFUL", icon: <ThumbsDown size={13} />, label: "Not helpful" },
+                      ].map(({ v, icon, label }) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setFeedbackForm({ ...feedbackForm, rating: v })}
+                          className={`flex-1 flex items-center justify-center gap-1 rounded-lg border py-1.5 text-xs transition-colors ${
+                            feedbackForm.rating === v
+                              ? "border-gold-dim bg-gold/15 text-gold"
+                              : "border-border text-ink_text-muted hover:border-gold-dim"
+                          }`}
+                        >
+                          {icon}{label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label">Was the score accurate?</label>
+                    <div className="flex gap-2">
+                      {[
+                        { v: "ACCURATE", label: "Accurate" },
+                        { v: "PARTIALLY_ACCURATE", label: "Partial" },
+                        { v: "INACCURATE", label: "Inaccurate" },
+                      ].map(({ v, label }) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setFeedbackForm({ ...feedbackForm, score_accuracy: v })}
+                          className={`flex-1 rounded-lg border py-1.5 text-xs transition-colors ${
+                            feedbackForm.score_accuracy === v
+                              ? "border-gold-dim bg-gold/15 text-gold"
+                              : "border-border text-ink_text-muted hover:border-gold-dim"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label">Comment (optional)</label>
+                    <textarea
+                      className="input"
+                      rows={2}
+                      placeholder="e.g. Score too high given missing documents…"
+                      value={feedbackForm.comment}
+                      onChange={(e) => setFeedbackForm({ ...feedbackForm, comment: e.target.value })}
+                    />
+                  </div>
+
+                  <button className="btn-primary w-full justify-center text-xs" type="submit" disabled={feedbackBusy}>
+                    {feedbackBusy ? <Loader2 size={12} className="animate-spin" /> : "Submit feedback"}
+                  </button>
+                </form>
+              )}
+
+              {feedbackList.length > 0 && (
+                <div className="mt-4 space-y-2 border-t border-border pt-4">
+                  <p className="eyebrow mb-2">Previous feedback ({feedbackList.length})</p>
+                  {feedbackList.slice(0, 3).map((f) => (
+                    <div key={f.id} className="rounded-lg border border-border bg-ink-soft px-3 py-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-ink_text-primary">{f.reviewer_name}</span>
+                        <span className="text-ink_text-faint">{new Date(f.submitted_at).toLocaleDateString()}</span>
+                      </div>
+                      <div className="mt-1 flex gap-2 text-ink_text-muted">
+                        <span className={f.rating === "HELPFUL" ? "text-moss-soft" : f.rating === "NOT_HELPFUL" ? "text-clay-soft" : ""}>
+                          {f.rating.replaceAll("_", " ")}
+                        </span>
+                        <span>·</span>
+                        <span>{f.score_accuracy.replaceAll("_", " ")}</span>
+                      </div>
+                      {f.comment && <p className="mt-1 text-ink_text-muted italic">{f.comment}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

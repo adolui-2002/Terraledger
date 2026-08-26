@@ -64,4 +64,13 @@ export const Assistant = {
     api.get(`/api/v1/assistant/applications/${applicationId}/summary`).then((r) => r.data),
 };
 
+export const Feedback = {
+  submit: (applicationId, payload) =>
+    api.post(`/api/v1/applications/${applicationId}/feedback`, payload).then((r) => r.data),
+  list: (applicationId) =>
+    api.get(`/api/v1/applications/${applicationId}/feedback`).then((r) => r.data),
+  summary: () =>
+    api.get("/api/v1/feedback/summary").then((r) => r.data),
+};
+
 export default api;

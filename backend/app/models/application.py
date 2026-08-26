@@ -42,3 +42,4 @@ class Application(Base):
     fraud_signals = relationship("FraudSignal", back_populates="application", cascade="all, delete-orphan")
     review_decisions = relationship("ReviewDecision", back_populates="application", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="application", cascade="all, delete-orphan")
+    ai_feedback = relationship("AIFeedback", back_populates="application", cascade="all, delete-orphan")
