@@ -242,12 +242,142 @@ docker compose exec backend python -m app.ml.train
 | `POST` | `/api/v1/applications/{id}/assign` | Assign a reviewer |
 | `POST` | `/api/v1/applications/{id}/decisions` | Record a human review decision (override reason required if it diverges from the AI recommendation) |
 | `GET` | `/api/v1/applications/{id}/audit` | Full audit trail |
+| `POST` | `/api/v1/applications/{id}/feedback` | Submit reviewer feedback on AI scoring quality |
+| `GET` | `/api/v1/feedback/summary` | Aggregate AI feedback statistics |
+| `GET` | `/api/v1/assistant/applications/{id}/summary` | Generate AI-assisted application summary |
 | `POST` | `/api/v1/assistant/ask` | Reviewer assistant Q&A |
 | `GET` | `/api/v1/analytics/summary` | Dashboard/analytics metrics |
+| `GET` | `/api/v1/reports/applications.csv` | Export applications register as CSV |
+| `GET` | `/api/v1/reports/applications/{id}/pdf` | Export single application as PDF reviewer report |
 | `POST` | `/api/v1/ml/train` | (Re)train the SHAP-explainable ML scoring model |
 | `GET` | `/api/v1/ml/status` | Current model metadata |
+| `GET` | `/api/v1/integrations/status` | Adapter health (portal, messaging, translation) |
+| `GET` | `/api/v1/integrations/languages` | Supported languages for detection and translation |
+| `GET` | `/api/v1/integrations/notifications` | Mock notification log (demo) |
+| `POST` | `/api/v1/integrations/portal/sync/{id}` | Manually sync application status to portal |
+| `POST` | `/api/v1/integrations/portal/ingest` | Ingest an application from the schemes portal |
 
 Full interactive docs (OpenAPI/Swagger) at `/docs` once the backend is running.
+
+---
+
+## Advanced features
+
+### AI-assisted summarisation
+
+Each application detail page has a **Generate summary** button (visible after the pipeline has run). Click it to get a structured AI briefing covering documents, validation, fraud signals, score, and recommendation. The summary is built from structured fields only — no raw document text is sent to any AI provider.
+
+### Reporting & export
+
+**CSV export** — go to the **Analytics** page and use the "Export Register" panel. Optionally filter by status before downloading. The CSV includes scores, risk levels, AI recommendations, fraud signal counts, and human decisions, with a UTF-8 BOM for direct Excel compatibility.
+
+**PDF report** — on any application detail page, click **Export PDF** (top-right of the overview panel). The report opens inline in the browser and covers all 8 sections: overview, documents, extracted fields, validation, fraud signals, AI scoring with SHAP explanation, human review decision, and audit trail.
+
+### Structured logging
+
+All backend logs are emitted as JSON to stdout. View them with:
+
+```bash
+# Docker
+docker compose logs -f backend
+
+# Local
+uvicorn app.main:app --reload --port 8000
+```
+
+Every HTTP request logs `method`, `path`, `status_code`, `duration_ms`, and a `request_id` UUID. The same `request_id` is returned in the `X-Request-ID` response header for frontend error correlation.
+
+Control verbosity via `LOG_LEVEL` in `backend/.env` (default: `INFO`). Valid values: `DEBUG`, `INFO`, `WARNING`, `ERROR`.
+
+### Multilingual support
+
+The platform detects the language of every uploaded document automatically (using `langdetect`, fully local). Supported languages: English, Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Urdu, Odia.
+
+**Mock mode (default):** language is detected and labelled; no translation is applied. Non-English amounts in Devanagari/Indic scripts are extracted using script-aware patterns.
+
+**Live translation (optional):** point to any [LibreTranslate](https://libretranslate.com)-compatible endpoint (self-hostable for on-prem):
+
+```bash
+# 1. Run LibreTranslate locally
+docker run -p 5000:5000 libretranslate/libretranslate
+
+# 2. Enable in backend/.env
+TRANSLATION_ADAPTER=live
+TRANSLATION_BASE_URL=http://localhost:5000
+TRANSLATION_API_KEY=          # leave blank for local LibreTranslate
+```
+
+Rebuild the backend after changing `.env`:
+```bash
+docker compose up --build backend
+```
+
+Check which languages are available and whether translation is active:
+```bash
+curl http://localhost:8000/api/v1/integrations/languages
+```
+
+### Portal & messaging adapters
+
+Both adapters run in **mock mode** by default — they log calls and store notifications in memory but make zero network calls. This is the correct mode for RESTRICTED data.
+
+**View mock notifications** sent during the current session:
+```bash
+curl http://localhost:8000/api/v1/integrations/notifications
+```
+
+**Enable live portal integration:**
+```bash
+# backend/.env
+PORTAL_ADAPTER=live
+PORTAL_BASE_URL=https://your-portal-api.gov.in
+PORTAL_API_KEY=your-api-key
+```
+
+**Enable live messaging (SMTP):**
+```bash
+# backend/.env
+MESSAGING_ADAPTER=live
+SMTP_HOST=smtp.gov.in
+SMTP_PORT=587
+SMTP_USER=noreply@gov.in
+SMTP_PASSWORD=your-password
+```
+
+**Simulate a portal-originated application:**
+```bash
+curl -X POST http://localhost:8000/api/v1/integrations/portal/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"applicant_name": "Test Applicant", "scheme_name": "Environmental Scheme", "requested_amount": 500000}'
+```
+
+### Evaluation
+
+Run the evaluation script to measure extraction accuracy, validation accuracy, fraud detection precision/recall, and ML scoring quality against the synthetic dataset:
+
+```bash
+# Docker
+docker compose exec backend python -m app.evaluation.evaluate
+
+# Local
+cd backend && python -m app.evaluation.evaluate
+```
+
+Output is written to `docs/evaluation_output.md` (human-readable) and `docs/evaluation_output.json` (machine-readable). Run this after re-seeding or retraining to track quality changes.
+
+### Reviewer feedback
+
+On any application detail page, reviewers can rate the AI scoring recommendation using the **Rate AI Scoring** panel (right column, below the assistant). Feedback captures:
+- Whether the recommendation was helpful (Helpful / Partially / Not helpful)
+- Whether the score was accurate (Accurate / Partially / Inaccurate)
+- An optional comment
+
+View aggregate feedback statistics:
+```bash
+curl http://localhost:8000/api/v1/feedback/summary
+```
+
+Feedback is stored durably and audited, but **not** automatically fed into model retraining — a human must review the aggregate and trigger retraining explicitly via `POST /api/v1/ml/train`.
 
 ---
 
@@ -255,4 +385,5 @@ Full interactive docs (OpenAPI/Swagger) at `/docs` once the backend is running.
 
 - `docs/architecture.md` — data flow, trust boundaries, ADRs
 - `docs/evaluation-rubric.md` — how to measure extraction/validation/fraud/scoring accuracy against the synthetic dataset
+- `docs/evaluation_output.md` — latest evaluation run output
 - `backend/app/rules/*.yaml` — configurable eligibility rules and scoring weights (no code change needed to add a scheme)

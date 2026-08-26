@@ -50,6 +50,26 @@ CERTIFICATE_TEXT = "This certifies registration as an environmental implementati
 FORM_TEXT = "Application form for {scheme}. Applicant: {name}. Requested amount ₹{amount}. Duration 18 months."
 LOW_QUALITY_TEXT = "prjct enviromnt schme app.. amt ~ rs {amount} (scan unclear) sig illegible"
 
+# Multilingual templates — used to generate non-English synthetic applications
+# that stress-test language detection, transliteration-tolerant extraction,
+# and the multilingual pipeline flag in the reviewer UI.
+PROPOSAL_TEXT_HI = (
+    "यह परियोजना 4 वार्डों में विकेंद्रीकृत अपशिष्ट जल उपचार और वर्षा जल संचयन प्रणाली स्थापित करने का प्रस्ताव करती है। "
+    "कुल परियोजना लागत Rs.{amount} अनुमानित है। कार्यान्वयन योजना में सामुदायिक प्रशिक्षण, त्रैमासिक निगरानी शामिल है।"
+)
+FORM_TEXT_HI = "आवेदन पत्र: {scheme}। आवेदक: {name}। अनुरोधित राशि Rs.{amount}। अवधि 18 माह।"
+BUDGET_TEXT_HI = (
+    "बजट विवरण: उपकरण Rs.{equip}, निर्माण कार्य Rs.{civil}, प्रशिक्षण Rs.{train}, "
+    "आकस्मिक Rs.{contingency}. कुल बजट Rs.{amount}."
+)
+CERTIFICATE_TEXT_HI = "यह पर्यावरण कार्यान्वयन भागीदार के रूप में पंजीकरण प्रमाणित करता है, जारी {date}।"
+
+PROPOSAL_TEXT_TA = (
+    "இந்த திட்டம் 4 வார்டுகளில் பரவலாக்கப்பட்ட கழிவுநீர் சுத்திகரிப்பு மற்றும் "
+    "மழைநீர் சேகரிப்பு அமைப்பை நிறுவ முன்மொழிகிறது. மொத்த திட்ட செலவு Rs.{amount} ஆக மதிப்பிடப்படுகிறது।"
+)
+FORM_TEXT_TA = "விண்ணப்பப் படிவம்: {scheme}. விண்ணப்பதாரர்: {name}. கோரிய தொகை Rs.{amount}. காலம் 18 மாதங்கள்."
+
 
 def _make_pdf_bytes(text: str) -> bytes:
     """Render text as a real, openable PDF using fpdf2."""
@@ -278,6 +298,31 @@ def generate(db, n_normal: int = 6):
                 equip=int(amount * 0.4), civil=int(amount * 0.35), train=int(amount * 0.1),
                 contingency=int(amount * 0.15), amount=amount)),
             _mk_doc(None, "CERTIFICATE", "certificate.pdf", CERTIFICATE_TEXT.format(date="2024-05-05")),
+        ]
+        add(app, docs)
+
+    # 9. MULTILINGUAL — Hindi application (stress-tests language detection pipeline)
+    for lang_code, form_tmpl, proposal_tmpl, budget_tmpl, cert_tmpl in [
+        ("hi", FORM_TEXT_HI, PROPOSAL_TEXT_HI, BUDGET_TEXT_HI, CERTIFICATE_TEXT_HI),
+        ("ta", FORM_TEXT_TA, PROPOSAL_TEXT_TA, BUDGET_TEXT, CERTIFICATE_TEXT),
+    ]:
+        name = random.choice(APPLICANTS)
+        scheme = random.choice(SCHEMES)
+        amount = random.randint(150000, 900000)
+        app = _base_application(name, scheme, amount, "normal")
+        app.language = lang_code
+        docs = [
+            _mk_doc(None, "APPLICATION_FORM", "form.pdf",
+                    form_tmpl.format(scheme=scheme, name=name, amount=amount)),
+            _mk_doc(None, "PROPOSAL", "proposal.pdf",
+                    proposal_tmpl.format(amount=amount)),
+            _mk_doc(None, "BUDGET", "budget.xlsx",
+                    budget_tmpl.format(
+                        equip=int(amount * 0.4), civil=int(amount * 0.35),
+                        train=int(amount * 0.1), contingency=int(amount * 0.15),
+                        amount=amount)),
+            _mk_doc(None, "CERTIFICATE", "certificate.pdf",
+                    cert_tmpl.format(date="2024-05-05") if "{date}" in cert_tmpl else cert_tmpl),
         ]
         add(app, docs)
 

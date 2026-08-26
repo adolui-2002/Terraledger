@@ -45,6 +45,8 @@ def integration_status():
     """Returns which adapters are configured and their type (mock/live)."""
     portal = get_portal_adapter()
     messaging = get_messaging_adapter()
+    from app.services.language_service import get_translation_adapter
+    translation = get_translation_adapter()
     return {
         "portal_adapter": {
             "name": portal.name,
@@ -58,11 +60,15 @@ def integration_status():
             "smtp_host": settings.smtp_host or "(not configured)",
             "status": "ok",
         },
+        "translation_adapter": {
+            "name": translation.name,
+            "type": settings.translation_adapter,
+            "base_url": settings.translation_base_url or "(not configured)",
+            "status": "ok",
+        },
         "note": (
-            "Both adapters are running in mock mode. No real portal or "
-            "messaging calls are made. Set PORTAL_ADAPTER=live and "
-            "MESSAGING_ADAPTER=live with provider credentials to enable "
-            "real integration."
+            "All adapters are running in mock mode. No real portal, messaging, or "
+            "translation calls are made."
         ) if settings.portal_adapter == "mock" and settings.messaging_adapter == "mock" else "Live adapters active.",
     }
 
@@ -80,6 +86,21 @@ def list_notifications():
         "adapter": settings.messaging_adapter,
         "count": len(MockMessagingAdapter.get_sent()),
         "notifications": MockMessagingAdapter.get_sent(),
+    }
+
+
+@router.get("/languages")
+def supported_languages():
+    """Return all languages supported for detection and translation."""
+    from app.services.language_service import get_supported_languages
+    return {
+        "languages": get_supported_languages(),
+        "translation_adapter": settings.translation_adapter,
+        "translation_base_url": settings.translation_base_url or "(not configured)",
+        "note": (
+            "Language detection is always local (langdetect). "
+            "Translation requires TRANSLATION_ADAPTER=live with a LibreTranslate-compatible endpoint."
+        ),
     }
 
 

@@ -310,7 +310,13 @@ export default function ApplicationDetail() {
                   </div>
                   <div className="flex items-center gap-3 text-xs text-ink_text-muted">
                     {d.ocr_used && <span>OCR conf. {(d.ocr_confidence * 100).toFixed(0)}%</span>}
-                    <span className="font-mono uppercase">{d.detected_language}</span>
+                    {d.detected_language && d.detected_language !== "en" ? (
+                      <span className="rounded-full border border-gold-dim bg-gold/10 px-2 py-0.5 text-[10px] font-mono uppercase text-gold-soft">
+                        {d.detected_language}
+                      </span>
+                    ) : (
+                      <span className="font-mono uppercase">{d.detected_language}</span>
+                    )}
                     {(() => {
                       const ext = d.filename.slice(d.filename.lastIndexOf(".")).toLowerCase();
                       const isInline = INLINE_EXTENSIONS.has(ext);

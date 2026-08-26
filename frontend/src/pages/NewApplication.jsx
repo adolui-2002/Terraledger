@@ -80,6 +80,28 @@ export default function NewApplication() {
               <input type="number" className="input" value={form.requested_amount}
                 onChange={(e) => setForm({ ...form, requested_amount: e.target.value })} />
             </div>
+            <div className="col-span-2">
+              <label className="label">Application language</label>
+              <select className="input" value={form.language}
+                onChange={(e) => setForm({ ...form, language: e.target.value })}>
+                <option value="en">English</option>
+                <option value="hi">Hindi — हिंदी</option>
+                <option value="bn">Bengali — বাংলা</option>
+                <option value="ta">Tamil — தமிழ்</option>
+                <option value="te">Telugu — తెలుగు</option>
+                <option value="mr">Marathi — मराठी</option>
+                <option value="gu">Gujarati — ગુજરાતી</option>
+                <option value="kn">Kannada — ಕನ್ನಡ</option>
+                <option value="ml">Malayalam — മലയാളം</option>
+                <option value="pa">Punjabi — ਪੰਜਾਬੀ</option>
+                <option value="ur">Urdu — اردو</option>
+              </select>
+              {form.language !== "en" && (
+                <p className="mt-1.5 text-[11px] text-gold-soft">
+                  Non-English documents will be language-detected automatically. Enable a translation adapter for full extraction support.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
