@@ -1,0 +1,368 @@
+{
+  "generated_at": "2026-08-26 02:30:56 UTC",
+  "total_apps": 20,
+  "extraction": {
+    "total_apps": 20,
+    "total_fields_expected": 40,
+    "total_fields_recovered": 38,
+    "overall_accuracy": 0.95,
+    "overall_accuracy_pct": "95.0%",
+    "per_category": {
+      "borderline": {
+        "apps": 2,
+        "accuracy": "100.0%",
+        "recovered": 4,
+        "expected": 4
+      },
+      "complete": {
+        "apps": 2,
+        "accuracy": "100.0%",
+        "recovered": 4,
+        "expected": 4
+      },
+      "contradictory": {
+        "apps": 2,
+        "accuracy": "100.0%",
+        "recovered": 4,
+        "expected": 4
+      },
+      "duplicate": {
+        "apps": 2,
+        "accuracy": "100.0%",
+        "recovered": 4,
+        "expected": 4
+      },
+      "incomplete": {
+        "apps": 2,
+        "accuracy": "100.0%",
+        "recovered": 4,
+        "expected": 4
+      },
+      "low_quality": {
+        "apps": 2,
+        "accuracy": "50.0%",
+        "recovered": 2,
+        "expected": 4
+      },
+      "normal": {
+        "apps": 6,
+        "accuracy": "100.0%",
+        "recovered": 12,
+        "expected": 12
+      },
+      "suspicious": {
+        "apps": 2,
+        "accuracy": "100.0%",
+        "recovered": 4,
+        "expected": 4
+      }
+    }
+  },
+  "validation": {
+    "total_checks": 28,
+    "correct_checks": 23,
+    "accuracy": 0.8214,
+    "accuracy_pct": "82.1%",
+    "mismatches": [
+      {
+        "reference": "APP-79434",
+        "category": "complete",
+        "check": "required_documents",
+        "expected": "PASS",
+        "actual": "FAIL"
+      },
+      {
+        "reference": "APP-14357",
+        "category": "normal",
+        "check": "required_documents",
+        "expected": "PASS",
+        "actual": "FAIL"
+      },
+      {
+        "reference": "APP-00360",
+        "category": "normal",
+        "check": "required_documents",
+        "expected": "PASS",
+        "actual": "FAIL"
+      },
+      {
+        "reference": "APP-80710",
+        "category": "normal",
+        "check": "required_documents",
+        "expected": "PASS",
+        "actual": "FAIL"
+      },
+      {
+        "reference": "APP-88668",
+        "category": "normal",
+        "check": "required_documents",
+        "expected": "PASS",
+        "actual": "FAIL"
+      }
+    ]
+  },
+  "fraud": {
+    "true_positives": 4,
+    "false_positives": 8,
+    "true_negatives": 2,
+    "false_negatives": 0,
+    "precision": 0.3333,
+    "recall": 1.0,
+    "f1_score": 0.5,
+    "precision_pct": "33.3%",
+    "recall_pct": "100.0%",
+    "per_app": [
+      {
+        "reference": "APP-79434",
+        "category": "complete",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "FP"
+      },
+      {
+        "reference": "APP-25231",
+        "category": "complete",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "FP"
+      },
+      {
+        "reference": "APP-99184",
+        "category": "incomplete",
+        "has_signals": false,
+        "signal_types": [],
+        "result": "TN"
+      },
+      {
+        "reference": "APP-72433",
+        "category": "incomplete",
+        "has_signals": false,
+        "signal_types": [],
+        "result": "TN"
+      },
+      {
+        "reference": "APP-25885",
+        "category": "contradictory",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "SKIP"
+      },
+      {
+        "reference": "APP-23118",
+        "category": "contradictory",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "SKIP"
+      },
+      {
+        "reference": "APP-81306",
+        "category": "low_quality",
+        "has_signals": false,
+        "signal_types": [],
+        "result": "SKIP"
+      },
+      {
+        "reference": "APP-47694",
+        "category": "low_quality",
+        "has_signals": false,
+        "signal_types": [],
+        "result": "SKIP"
+      },
+      {
+        "reference": "APP-06890",
+        "category": "duplicate",
+        "has_signals": true,
+        "signal_types": [
+          "DUPLICATE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE"
+        ],
+        "result": "TP"
+      },
+      {
+        "reference": "APP-08251",
+        "category": "duplicate",
+        "has_signals": true,
+        "signal_types": [
+          "DUPLICATE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE"
+        ],
+        "result": "TP"
+      },
+      {
+        "reference": "APP-61497",
+        "category": "suspicious",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DATE_ANOMALY"
+        ],
+        "result": "TP"
+      },
+      {
+        "reference": "APP-16636",
+        "category": "suspicious",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DOCUMENT_REUSE",
+          "DATE_ANOMALY"
+        ],
+        "result": "TP"
+      },
+      {
+        "reference": "APP-98825",
+        "category": "borderline",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "SKIP"
+      },
+      {
+        "reference": "APP-95155",
+        "category": "borderline",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "SKIP"
+      },
+      {
+        "reference": "APP-14357",
+        "category": "normal",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "FP"
+      },
+      {
+        "reference": "APP-09708",
+        "category": "normal",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "FP"
+      },
+      {
+        "reference": "APP-00360",
+        "category": "normal",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "FP"
+      },
+      {
+        "reference": "APP-40877",
+        "category": "normal",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "FP"
+      },
+      {
+        "reference": "APP-80710",
+        "category": "normal",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "FP"
+      },
+      {
+        "reference": "APP-88668",
+        "category": "normal",
+        "has_signals": true,
+        "signal_types": [
+          "DOCUMENT_REUSE"
+        ],
+        "result": "FP"
+      }
+    ]
+  },
+  "scoring": {
+    "score_direction_accuracy": 0.6667,
+    "score_direction_accuracy_pct": "66.7%",
+    "ml_accuracy": 1.0,
+    "ml_accuracy_pct": "100.0%",
+    "model_agreement_rate": 0.75,
+    "model_agreement_pct": "75.0%",
+    "recommendation_distribution": {
+      "APPROVE": 13,
+      "REQUEST_INFO": 3,
+      "ESCALATE": 4
+    },
+    "per_category": {
+      "borderline": {
+        "count": 2,
+        "mean_score": 60.1,
+        "min_score": 60.1,
+        "max_score": 60.1
+      },
+      "complete": {
+        "count": 2,
+        "mean_score": 90.0,
+        "min_score": 87.0,
+        "max_score": 93.0
+      },
+      "contradictory": {
+        "count": 2,
+        "mean_score": 79.5,
+        "min_score": 79.5,
+        "max_score": 79.5
+      },
+      "duplicate": {
+        "count": 2,
+        "mean_score": 57.0,
+        "min_score": 57.0,
+        "max_score": 57.0
+      },
+      "incomplete": {
+        "count": 2,
+        "mean_score": 84.0,
+        "min_score": 74.0,
+        "max_score": 94.0
+      },
+      "low_quality": {
+        "count": 2,
+        "mean_score": 95.0,
+        "min_score": 92.0,
+        "max_score": 98.0
+      },
+      "normal": {
+        "count": 6,
+        "mean_score": 89.0,
+        "min_score": 87.0,
+        "max_score": 93.0
+      },
+      "suspicious": {
+        "count": 2,
+        "mean_score": 57.0,
+        "min_score": 57.0,
+        "max_score": 57.0
+      }
+    }
+  }
+}
