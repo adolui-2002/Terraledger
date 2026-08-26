@@ -18,34 +18,6 @@ docs/       Architecture, data flow, trust boundaries, evaluation rubric
 Modular monolith (see [ADR-001](#adr-001-modular-monolith-over-microservices)
 below) with four cooperating layers.
 
-### System overview
-
-```mermaid
-graph TD
-    U[Applicant / Reviewer] -->|HTTPS / REST / JSON + multipart| FE["Frontend: React + Vite + Tailwind (nginx)"]
-    FE -->|API calls| BE["Backend API: FastAPI (applications · documents · review · analytics · assistant · ml)"]
-    BE --> DB[(PostgreSQL (applications, documents, audit, scores, users))]
-    BE --> FS["Local object storage (per-app scoped, never served directly)"]
-    BE --> EX["Extraction Service (OCR / text / xlsx amounts / language)"]
-    BE --> VA["Validation Service (completeness, eligibility, contradictions)"]
-    BE --> FR["Fraud Service (duplicates / document-reuse / date anomalies)"]
-    BE --> SC["Scoring Service (deterministic weighted rubric + ML second opinion)"]
-    BE --> AI["Assistant Service (AI provider abstraction)"]
-    BE --> WF["Workflow Service (state machine · reviewer assignment)"]
-    BE --> AN["Analytics Service (dashboard metrics)"]
-    SC --> Y1["/app/rules/eligibility_rules.yaml"]
-    SC --> Y2["/app/rules/scoring_weights.yaml"]
-    AI --> EXT["External AI provider (opt-in, dev only)"]
-    style U fill:#f9f,stroke:#333
-    style FE fill:#bbf,stroke:#333
-    style BE fill:#bfb,stroke:#333,stroke-width:2px
-    style DB fill:#fbb,stroke:#333
-    style FS fill:#fbb,stroke:#333
-    style Y1 fill:#ff9,stroke:#333
-    style Y2 fill:#ff9,stroke:#333
-    style SC fill:#ffb,stroke:#333
-    style AI fill:#cff,stroke:#333
-```
 
 ### End-to-end data flow
 
